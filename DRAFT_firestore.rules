@@ -1,0 +1,122 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3: Primitive Definition
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+    
+    // Admin check - including bootstrapper email
+    function isAdmin() { 
+      return isVerified() && request.auth.token.email == "abdokony@gmail.com";
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Pillar 2: Validation Blueprints
+    function isValidLead(data) {
+      return data.user is string && data.user.size() > 0 && data.user.size() <= 100 &&
+             data.platform is string && data.platform.size() > 0 && data.platform.size() <= 50 &&
+             data.content is string && data.content.size() <= 5000 &&
+             data.compositeScore is number && data.compositeScore >= 0 && data.compositeScore <= 100 &&
+             data.userId == request.auth.uid &&
+             (data.buyingIntent == null || (data.buyingIntent is string && data.buyingIntent.size() <= 2000)) &&
+             (data.contactInfo == null || (data.contactInfo is string && data.contactInfo.size() <= 500)) &&
+             (data.location == null || (data.location is string && data.location.size() <= 200));
+    }
+
+    function isValidSearchHistory(data) {
+      return data.userId == request.auth.uid &&
+             data.keyword is string && data.keyword.size() > 0 && data.keyword.size() <= 256 &&
+             (data.location == null || (data.location is string && data.location.size() <= 256));
+    }
+
+    function isValidSearchPreset(data) {
+      return data.userId == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 128 &&
+             data.keyword is string && data.keyword.size() > 0 && data.keyword.size() <= 256;
+    }
+
+    function isValidProduct(data) {
+      return data.userId == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 128 &&
+             data.description is string && data.description.size() <= 2000 &&
+             (data.features == null || (data.features is list && data.features.size() <= 20)) &&
+             (data.targetAudience == null || (data.targetAudience is list && data.targetAudience.size() <= 20)) &&
+             (data.marketPosition == null || (data.marketPosition is string && data.marketPosition.size() <= 200)) &&
+             (data.usp == null || (data.usp is string && data.usp.size() <= 500));
+    }
+
+    match /leads/{leadId} {
+      // Path Hardening
+      allow get: if isVerified() && isOwner(existing().userId) && isValidId(leadId);
+      // Secure List Queries (Pillar 8)
+      allow list: if isVerified() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isVerified() && isValidLead(incoming()) && 
+                    incoming().savedAt == request.time &&
+                    incoming().keys().hasAll(['user', 'platform', 'content', 'compositeScore', 'userId', 'savedAt']) &&
+                    incoming().keys().size() <= 25; // Prevent shadow fields
+      
+      allow update: if isVerified() && isOwner(existing().userId) && isValidLead(incoming()) && (
+        // Action: CRM Update
+        (incoming().diff(existing()).affectedKeys().hasOnly(['crmDetails', 'updatedAt'])) ||
+        // Action: General Update
+        (incoming().diff(existing()).affectedKeys().hasOnly(['user', 'platform', 'content', 'buyingIntent', 'intentScore', 'compositeScore', 'contactInfo', 'contactMethods', 'location', 'date', 'url', 'category', 'sentiment', 'verificationSignal', 'updatedAt']))
+      ) && (incoming().updatedAt == request.time) && (incoming().userId == existing().userId);
+      
+      allow delete: if isVerified() && isOwner(existing().userId);
+    }
+
+    match /search_history/{historyId} {
+      allow get: if isVerified() && isOwner(existing().userId) && isValidId(historyId);
+      allow list: if isVerified() && resource.data.userId == request.auth.uid;
+      allow create: if isVerified() && isValidSearchHistory(incoming()) && 
+                    incoming().timestamp == request.time &&
+                    incoming().keys().size() <= 10;
+      allow delete: if isVerified() && isOwner(existing().userId);
+    }
+
+    match /search_presets/{presetId} {
+      allow get: if isVerified() && isOwner(existing().userId) && isValidId(presetId);
+      allow list: if isVerified() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isVerified() && isValidSearchPreset(incoming()) && 
+                    incoming().createdAt == request.time &&
+                    incoming().keys().size() <= 20;
+      
+      allow update: if isVerified() && isOwner(existing().userId) && isValidSearchPreset(incoming()) &&
+                    incoming().userId == existing().userId &&
+                    incoming().createdAt == existing().createdAt &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['name', 'keyword', 'location', 'precisionMode', 'extractionDepth', 'limit', 'uaComplexity', 'ipRotationFreq', 'fingerprintEvasion', 'profileVerification', 'dynamicArchitecture', 'forceStability']);
+      
+      allow delete: if isVerified() && isOwner(existing().userId);
+    }
+
+    match /products/{productId} {
+      allow get: if isVerified() && isOwner(existing().userId) && isValidId(productId);
+      allow list: if isVerified() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isVerified() && isValidProduct(incoming()) && 
+                    incoming().createdAt == request.time &&
+                    incoming().keys().size() <= 15;
+      
+      allow update: if isVerified() && isOwner(existing().userId) && isValidProduct(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'features', 'targetAudience', 'marketPosition', 'usp', 'learnedSignals', 'updatedAt'])
+      ) && (incoming().updatedAt == request.time) && (incoming().userId == existing().userId);
+      
+      allow delete: if isVerified() && isOwner(existing().userId);
+    }
+  }
+}

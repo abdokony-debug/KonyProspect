@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://kony83.app/sitemap.xml

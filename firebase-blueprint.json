@@ -1,0 +1,145 @@
+{
+  "entities": {
+    "Lead": {
+      "title": "Lead",
+      "description": "A potential buyer lead extracted from social media and digital communities.",
+      "type": "object",
+      "properties": {
+        "user": { "type": "string", "description": "Username or real name of the lead" },
+        "platform": { "type": "string", "description": "Source platform (e.g., X, Reddit, LinkedIn)" },
+        "content": { "type": "string", "description": "Verbatim post snippet or comment" },
+        "buyingIntent": { "type": "string", "description": "AI-analyzed intent description" },
+        "intentScore": { "type": "number", "description": "Base intent score (0-100)" },
+        "relevanceScore": { "type": "number" },
+        "urgencyScore": { "type": "number" },
+        "authorityScore": { "type": "number" },
+        "activityScore": { "type": "number" },
+        "engagementScore": { "type": "number" },
+        "recencyScore": { "type": "number" },
+        "compositeScore": { "type": "number", "description": "Overall calculated lead quality score (0-100)" },
+        "contactInfo": { "type": "string", "description": "Primary outreach channel" },
+        "contactMethods": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string", "enum": ["email", "telegram", "whatsapp", "dm", "phone", "handle", "link", "other"] },
+              "value": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          }
+        },
+        "location": { "type": "string" },
+        "date": { "type": "string" },
+        "url": { "type": "string", "format": "uri" },
+        "category": { "type": "string", "enum": ["retail", "saas", "services", "luxury", "other"] },
+        "sentiment": { "type": "string", "enum": ["positive", "neutral", "negative"] },
+        "verificationSignal": { "type": "string", "description": "Proof of authenticity" },
+        "userId": { "type": "string", "description": "Owner of the saved lead" },
+        "savedAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "crmDetails": {
+          "type": "object",
+          "properties": {
+            "assignedTo": { "type": "string" },
+            "priority": { "type": "string", "enum": ["low", "medium", "high"] },
+            "notes": { "type": "string" },
+            "addedAt": { "type": "string", "format": "date-time" }
+          }
+        }
+      },
+      "required": ["user", "platform", "content", "compositeScore", "userId", "savedAt"]
+    },
+    "SearchHistory": {
+      "title": "Search History",
+      "description": "Log of intelligence cycles performed by the user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "keyword": { "type": "string" },
+        "location": { "type": "string" },
+        "resultsCount": { "type": "number" },
+        "status": { "type": "string", "enum": ["success", "error", "neutral"] },
+        "precisionMode": { "type": "boolean" },
+        "options": {
+          "type": "object",
+          "properties": {
+            "limit": { "type": "string" },
+            "extractionDepth": { "type": "number" },
+            "ipRotationFreq": { "type": "string" },
+            "uaComplexity": { "type": "string" },
+            "fingerprintEvasion": { "type": "boolean" },
+            "profileVerification": { "type": "boolean" },
+            "dynamicArchitecture": { "type": "boolean" },
+            "forceStability": { "type": "boolean" },
+            "activeProductId": { "type": "string" }
+          }
+        },
+        "results": {
+          "type": "array",
+          "items": { "$ref": "Lead" }
+        },
+        "errorMessage": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "keyword", "timestamp"]
+    },
+    "SearchPreset": {
+      "title": "Search Preset",
+      "description": "Saved configuration for repeating specific extraction parameters.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "keyword": { "type": "string" },
+        "location": { "type": "string" },
+        "precisionMode": { "type": "boolean" },
+        "extractionDepth": { "type": "number" },
+        "limit": { "type": "string" },
+        "uaComplexity": { "type": "string" },
+        "ipRotationFreq": { "type": "string" },
+        "fingerprintEvasion": { "type": "boolean" },
+        "profileVerification": { "type": "boolean" },
+        "dynamicArchitecture": { "type": "boolean" },
+        "forceStability": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "name", "keyword", "createdAt"]
+    },
+    "Product": {
+      "title": "Product Intelligence",
+      "description": "Neural profile of a product used for matching with lead intent.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "features": { "type": "array", "items": { "type": "string" } },
+        "targetAudience": { "type": "array", "items": { "type": "string" } },
+        "marketPosition": { "type": "string" },
+        "usp": { "type": "string", "description": "Unique Selling Proposition" },
+        "learnedSignals": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "name", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/leads/{leadId}": {
+      "schema": "Lead",
+      "description": "User's extracted and qualified buyer leads."
+    },
+    "/search_history/{historyId}": {
+      "schema": "SearchHistory",
+      "description": "History of the user's intelligence scans."
+    },
+    "/search_presets/{presetId}": {
+      "schema": "SearchPreset",
+      "description": "Custom presets for specific search configurations."
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Neural product profiles for intent matching."
+    }
+  }
+}
